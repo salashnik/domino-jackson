@@ -236,6 +236,49 @@ public class Type {
   }
 
   /**
+   * Element type of a {@link java.util.Collection} or {@link Iterable}. If this type declares no
+   * type arguments, the superclass chain is walked until one does. {@code NameList extends
+   * ArrayList<String>} yields {@code String}.
+   */
+  public static TypeMirror elementType(TypeMirror typeMirror) {
+    List<TypeMirror> args = containerTypeArguments(typeMirror);
+    return args.isEmpty() ? objectType() : args.get(0);
+  }
+
+  /** Key type of a {@link java.util.Map}, resolved the same way as {@link #elementType}. */
+  public static TypeMirror keyType(TypeMirror typeMirror) {
+    List<TypeMirror> args = containerTypeArguments(typeMirror);
+    return args.isEmpty() ? objectType() : args.get(0);
+  }
+
+  /** Value type of a {@link java.util.Map}, resolved the same way as {@link #elementType}. */
+  public static TypeMirror valueType(TypeMirror typeMirror) {
+    List<TypeMirror> args = containerTypeArguments(typeMirror);
+    return args.size() < 2 ? objectType() : args.get(1);
+  }
+
+  private static List<TypeMirror> containerTypeArguments(TypeMirror start) {
+    TypeMirror current = start;
+    Set<String> seen = new HashSet<>();
+    while (current != null && current.getKind() == TypeKind.DECLARED) {
+      DeclaredType declared = (DeclaredType) current;
+      TypeElement element = (TypeElement) declared.asElement();
+      if (!seen.add(element.getQualifiedName().toString())) {
+        break;
+      }
+      if (!declared.getTypeArguments().isEmpty() && (isIterable(current) || isMap(current))) {
+        return new ArrayList<>(declared.getTypeArguments());
+      }
+      current = element.getSuperclass();
+    }
+    return List.of();
+  }
+
+  private static TypeMirror objectType() {
+    return elementUtils.getTypeElement(Object.class.getCanonicalName()).asType();
+  }
+
+  /**
    * isBasicType. checks if a {@link TypeMirror} is one of the types that are registered as a
    * <b>Basic type</b> in the {@link TypeRegistry}
    *
